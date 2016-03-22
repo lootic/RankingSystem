@@ -11,17 +11,8 @@ import java.util.TreeSet;
 public class Ranking {
 	private Map<String, Integer> standings;
 
-	private static <K, V extends Comparable<? super V>> SortedSet<Map.Entry<K, V>> entriesSortedByValues(
-			Map<K, V> map) {
-		SortedSet<Map.Entry<K, V>> sortedEntries = new TreeSet<Map.Entry<K, V>>(new Comparator<Map.Entry<K, V>>() {
-			@Override
-			public int compare(Map.Entry<K, V> e1, Map.Entry<K, V> e2) {
-				int res = e2.getValue().compareTo(e1.getValue());
-				return res != 0 ? res : 1;
-			}
-		});
-		sortedEntries.addAll(map.entrySet());
-		return sortedEntries;
+	public Ranking() {
+		standings = new TreeMap<String, Integer>();
 	}
 
 	private static String readFile(String path) throws IOException {
@@ -29,8 +20,8 @@ public class Ranking {
 		return new String(encoded);
 	}
 
-	public Ranking() {
-		standings = new TreeMap<String, Integer>();
+	public void addResultFromPath(String pathToResult) throws IOException {
+		addResult(readFile(pathToResult));
 	}
 
 	public void addResult(String result) {
@@ -49,27 +40,35 @@ public class Ranking {
 				String[] otherPlacementAndPlayer = rows[j].split("\t");
 
 				if (shouldPlayerStealPoint(placementAndPlayer, otherPlacementAndPlayer)) {
-					String player = placementAndPlayer[1].trim().toLowerCase();
-					String otherPlayer = otherPlacementAndPlayer[1].trim().toLowerCase();
-					int points = 1;
-
-					Integer playerResult = pointsToAdd.get(player);
-					playerResult = playerResult == null ? 0 : playerResult;
-					pointsToAdd.put(player, playerResult + points);
-
-					Integer otherPlayerResult = pointsToRemove.get(otherPlayer);
-					otherPlayerResult = otherPlayerResult == null ? 0 : otherPlayerResult;
-					pointsToRemove.put(otherPlayer, otherPlayerResult - points);
+					String player = normalize(placementAndPlayer[1]);
+					String otherPlayer = normalize(otherPlacementAndPlayer[1]);
+					stealPoint(pointsToRemove, pointsToAdd, player, otherPlayer);
 				}
 			}
 		}
 
-		for (String key : pointsToRemove.keySet()) {
-			addToResult(key, pointsToRemove.get(key));
-		}
+		updateStandnings(pointsToRemove);
+		updateStandnings(pointsToAdd);
+	}
+
+	private void updateStandnings(Map<String, Integer> pointsToAdd) {
 		for (String key : pointsToAdd.keySet()) {
 			addToResult(key, pointsToAdd.get(key));
 		}
+	}
+
+	private void stealPoint(Map<String, Integer> pointsToRemove, Map<String, Integer> pointsToAdd, String player,
+			String otherPlayer) {
+		int points = 1;
+
+		addPoint(pointsToAdd, player, points);
+		addPoint(pointsToRemove, otherPlayer, -points);
+	}
+
+	private void addPoint(Map<String, Integer> pointsToAdd, String player, int points) {
+		Integer playerResult = pointsToAdd.get(player);
+		playerResult = playerResult == null ? 0 : playerResult;
+		pointsToAdd.put(player, playerResult + points);
 	}
 
 	private void addToResult(String player, int addedResult) {
@@ -93,21 +92,8 @@ public class Ranking {
 		return oldResult;
 	}
 
-	private int halfDifference(String player, String otherPlayer) {
-		Integer oldResult = getRankingPoints(player);
-		Integer otherPlayerResult = getRankingPoints(otherPlayer);
-
-		if (oldResult == null || otherPlayerResult == null) {
-			return 1;
-		}
-		int halfDifference = (otherPlayerResult - oldResult) / 4;
-		System.out.println("(" + otherPlayer + ": " + otherPlayerResult + " - " + player + ": " + oldResult
-				+ ") / 3 == " + halfDifference);
-		return halfDifference != 0 ? halfDifference : 1;
-	}
-
-	public void addResultFromPath(String pathToResult) throws IOException {
-		addResult(readFile(pathToResult));
+	private String normalize(String player) {
+		return player.toLowerCase().trim();
 	}
 
 	public String standings() {
@@ -117,6 +103,19 @@ public class Ranking {
 		}
 		result.delete(result.length() - 1, result.length());
 		return result.toString();
+	}
+
+	private static <K, V extends Comparable<? super V>> SortedSet<Map.Entry<K, V>> entriesSortedByValues(
+			Map<K, V> map) {
+		SortedSet<Map.Entry<K, V>> sortedEntries = new TreeSet<Map.Entry<K, V>>(new Comparator<Map.Entry<K, V>>() {
+			@Override
+			public int compare(Map.Entry<K, V> e1, Map.Entry<K, V> e2) {
+				int res = e2.getValue().compareTo(e1.getValue());
+				return res != 0 ? res : 1;
+			}
+		});
+		sortedEntries.addAll(map.entrySet());
+		return sortedEntries;
 	}
 
 	public static void main(String[] args) throws IOException {
@@ -138,9 +137,5 @@ public class Ranking {
 		System.out.println();
 		System.out.println(ranking.standings());
 
-	}/**/
-
-	/**
-	 * Bobi Lootic Puzzle Sebson Parmsib Myrox Lumia Nacon Milom Laser thunder
-	 */
+	}
 }
